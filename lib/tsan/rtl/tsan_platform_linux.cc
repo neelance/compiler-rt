@@ -63,7 +63,7 @@
 # undef sa_sigaction
 #endif
 
-#if SANITIZER_FREEBSD
+#if SANITIZER_FREEBSD && !SANITIZER_GO
 extern "C" void *__libc_stack_end;
 void *__libc_stack_end = 0;
 #endif

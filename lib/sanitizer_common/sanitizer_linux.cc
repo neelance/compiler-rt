@@ -27,7 +27,7 @@
 #include "sanitizer_stacktrace.h"
 #include "sanitizer_symbolizer.h"
 
-#if !SANITIZER_FREEBSD
+#if !SANITIZER_FREEBSD && !SANITIZER_GO
 #include <asm/param.h>
 #endif
 
@@ -73,7 +73,7 @@ extern "C" {
 extern char **environ;  // provided by crt1
 #endif  // SANITIZER_FREEBSD
 
-#if !SANITIZER_ANDROID
+#if !SANITIZER_ANDROID && !SANITIZER_GO
 #include <sys/signal.h>
 #endif
 
@@ -431,7 +431,7 @@ const char *GetEnv(const char *name) {
 #endif
 }
 
-#if !SANITIZER_FREEBSD
+#if !SANITIZER_FREEBSD && !SANITIZER_GO
 extern "C" {
   SANITIZER_WEAK_ATTRIBUTE extern void *__libc_stack_end;
 }
@@ -462,22 +462,19 @@ static void ReadNullSepFileToArray(const char *path, char ***arr,
 }
 #endif
 
+#if !SANITIZER_GO
 static void GetArgsAndEnv(char ***argv, char ***envp) {
 #if !SANITIZER_FREEBSD
-#if !SANITIZER_GO
   if (&__libc_stack_end) {
-#endif
     uptr* stack_end = (uptr*)__libc_stack_end;
     int argc = *stack_end;
     *argv = (char**)(stack_end + 1);
     *envp = (char**)(stack_end + argc + 2);
-#if !SANITIZER_GO
   } else {
     static const int kMaxArgv = 2000, kMaxEnvp = 2000;
     ReadNullSepFileToArray("/proc/self/cmdline", argv, kMaxArgv);
     ReadNullSepFileToArray("/proc/self/environ", envp, kMaxEnvp);
   }
-#endif
 #else
   // On FreeBSD, retrieving the argument and environment arrays is done via the
   // kern.ps_strings sysctl, which returns a pointer to a structure containing
@@ -508,6 +505,7 @@ void ReExec() {
   Printf("execve failed, errno %d\n", rverrno);
   Die();
 }
+#endif
 
 enum MutexState {
   MtxUnlocked = 0,
@@ -803,7 +801,7 @@ uptr GetPageSize() {
 // Android post-M sysconf(_SC_PAGESIZE) crashes if called from .preinit_array.
 #if SANITIZER_ANDROID
   return 4096;
-#elif SANITIZER_LINUX && (defined(__x86_64__) || defined(__i386__))
+#elif SANITIZER_LINUX && defined(EXEC_PAGESIZE)
   return EXEC_PAGESIZE;
 #else
   return sysconf(_SC_PAGESIZE);  // EXEC_PAGESIZE may not be trustworthy.
